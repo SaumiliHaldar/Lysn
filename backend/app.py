@@ -19,16 +19,15 @@ MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client["lysn"]
 users = db["users"]
-sessions = db["sessions"]
-audio_metadata = db["audio_metadata"]  # metadata only
+audio_metadata = db["audio_metadata"]
 
 # Google OAuth
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 
-# App
-app = FastAPI(title="Lysn Backend")
+# FastAPI setup
+app = FastAPI(title="Lysn 🎧")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,24 +36,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ------------------ SIMPLE IN-MEMORY SESSIONS ------------------
+SESSIONS = {}  # { token: { "email": str, "last_active": datetime } }
+SESSION_TIMEOUT = timedelta(days=7)
+
+def create_session(email: str):
+    token = secrets.token_urlsafe(32)
+    SESSIONS[token] = {"email": email, "last_active": datetime.utcnow()}
+    return token
+
+def get_current_user(token: str = Form(...)):
+    session = SESSIONS.get(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    # Check timeout
+    if datetime.utcnow() - session["last_active"] > SESSION_TIMEOUT:
+        del SESSIONS[token]
+        raise HTTPException(status_code=401, detail="Session expired (inactive > 7 days)")
+
+    # Extend session activity
+    session["last_active"] = datetime.utcnow()
+    return session["email"]
+
+def logout_user(token: str):
+    SESSIONS.pop(token, None)
+
 # ------------------ HELPERS ------------------
 def generate_otp():
     return str(random.randint(100000, 999999))
 
-def create_session(email: str):
-    token = secrets.token_urlsafe(32)
-    expiry = datetime.utcnow() + timedelta(minutes=30)
-    sessions.update_one({"email": email}, {"$set": {"token": token, "expiry": expiry}}, upsert=True)
-    return token
-
-def get_current_user(token: str = Form(...)):
-    session = sessions.find_one({"token": token})
-    if not session or session.get("expiry", datetime.utcnow()) < datetime.utcnow():
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-    return session["email"]
-
 # ------------------ ROUTES ------------------
-
 @app.get("/")
 def root():
     return {"message": "Welcome to Lysn 🎧"}
@@ -75,10 +87,8 @@ def verify_otp(email: str = Form(...), otp: str = Form(...), name: str = Form(No
         raise HTTPException(status_code=401, detail="Invalid OTP")
     if datetime.utcnow() > user.get("otp_expiry", datetime.utcnow()):
         raise HTTPException(status_code=401, detail="OTP expired")
-    
+
     token = create_session(email)
-    
-    # Upsert user info
     users.update_one(
         {"email": email},
         {
@@ -92,7 +102,7 @@ def verify_otp(email: str = Form(...), otp: str = Form(...), name: str = Form(No
         },
         upsert=True
     )
-    return {"session_token": token}
+    return {"session_token": token, "email": email, "name": name or user.get("name", "")}
 
 @app.get("/auth/google/login")
 def google_login():
@@ -119,22 +129,20 @@ def google_callback(code: str):
     access_token = r.get("access_token")
     if not access_token:
         raise HTTPException(status_code=400, detail="Google login failed")
-    
+
     userinfo = requests.get(
         "https://www.googleapis.com/oauth2/v1/userinfo",
         params={"access_token": access_token}
     ).json()
-    
+
     email = userinfo.get("email")
     name = userinfo.get("name")
     profile_pic = userinfo.get("picture")
-    
+
     if not email:
         raise HTTPException(status_code=400, detail="Cannot get email")
-    
+
     token = create_session(email)
-    
-    # Upsert user info
     users.update_one(
         {"email": email},
         {
@@ -151,45 +159,45 @@ def google_callback(code: str):
     )
     return {"session_token": token, "email": email, "name": name, "profile_pic": profile_pic}
 
-@app.get("/auth/me")
-def get_current_user_info(current_user: str = Depends(get_current_user)):
-    return {"email": current_user}
+@app.post("/auth/me")
+def get_user_info(token: str = Form(...)):
+    email = get_current_user(token)
+    user = users.find_one({"email": email}, {"_id": 0})
+    return {"user": user}
 
 @app.post("/auth/logout")
-def logout(current_user: str = Depends(get_current_user)):
-    sessions.delete_one({"email": current_user})
+def logout(token: str = Form(...)):
+    logout_user(token)
     return {"message": "Logged out successfully"}
 
 # ---------- PDF → AUDIO ----------
 @app.post("/pdf/upload")
-def upload_pdf(file: UploadFile = File(...), current_user: str = Depends(get_current_user)):
+def upload_pdf(file: UploadFile = File(...), token: str = Form(...)):
+    current_user = get_current_user(token)
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF allowed")
-    
-    # Extract text
+
     pdf_reader = PyPDF2.PdfReader(file.file)
     text = ""
     for page in pdf_reader.pages:
         page_text = page.extract_text()
         if page_text:
             text += page_text + " "
-    
+
     if not text.strip():
         raise HTTPException(status_code=400, detail="PDF has no readable text")
-    
-    # Generate audio file locally
+
     os.makedirs("audio", exist_ok=True)
     audio_filename = f"audio/{secrets.token_hex(8)}.mp3"
     tts = gTTS(text=text, lang="en")
     tts.save(audio_filename)
-    
-    # Store only metadata
+
     audio_metadata.insert_one({
         "user": current_user,
         "file": audio_filename,
         "uploaded": datetime.utcnow()
     })
-    
+
     return {"audio_file": audio_filename}
 
 @app.get("/audio/{filename}")
@@ -200,6 +208,7 @@ def serve_audio(filename: str):
     return FileResponse(path, media_type="audio/mpeg")
 
 @app.get("/audio/list")
-def list_user_audios(current_user: str = Depends(get_current_user)):
+def list_user_audios(token: str = Form(...)):
+    current_user = get_current_user(token)
     user_files = audio_metadata.find({"user": current_user})
     return {"audios": [f["file"] for f in user_files]}
