@@ -9,7 +9,7 @@ from gtts import gTTS
 from io import BytesIO
 import gridfs, os, secrets, random, PyPDF2, requests
 
-from send_email import send_otp_email
+from send_email import send_otp_email, send_welcome_email
 
 # ------------------ LOAD ENV ------------------
 load_dotenv()
@@ -73,20 +73,43 @@ def root():
 
 # ---------- AUTHENTICATION : MANUAL ----------
 @app.post("/auth/otp/request")
-def request_otp(email: str = Form(...)):
-    otp = generate_otp()
-    expiry = datetime.utcnow() + timedelta(minutes=5)
-    users.update_one({"email": email}, {"$set": {"otp": otp, "otp_expiry": expiry}}, upsert=True)
-    send_otp_email(email, otp)
-    return {"message": "OTP sent to email"}
+def request_otp(email: str = Form(...), name: str = Form(None)):
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    users.update_one(
+        {"email": email},
+        {
+            "$setOnInsert": {
+                "name": name,
+                "created_at": datetime.utcnow(),
+                "auth_type": "manual",
+            },
+            "$set": {
+                "otp": otp,
+                "otp_expires": expires_at,
+                "updated_at": datetime.utcnow(),
+            },
+        },
+        upsert=True,
+    )
+
+    send_otp_email(email, otp, name)
+    return {"message": f"OTP sent to {email}"}
+
 
 @app.post("/auth/otp/verify")
 def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
     user = users.find_one({"email": email})
     if not user or user.get("otp") != otp:
         raise HTTPException(status_code=401, detail="Invalid OTP")
-    if datetime.utcnow() > user.get("otp_expiry", datetime.utcnow()):
+    if datetime.utcnow() > user.get("otp_expires", datetime.utcnow()):
         raise HTTPException(status_code=401, detail="OTP expired")
+
+    # check if new registration
+    existing_user = users.find_one({"email": email})
+    is_new_user = not existing_user or ("otp" in existing_user and not existing_user.get("verified"))
+
 
     token = create_session(email)
     users.update_one(
@@ -99,10 +122,14 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
                 "profile_pic": user.get("profile_pic", f"https://api.dicebear.com/9.x/identicon/svg?seed={email}"),
                 "updated_at": datetime.utcnow(),
             },
-            "$unset": {"otp": "", "otp_expiry": ""},
+            "$unset": {"otp": "", "otp_expires": ""},
         },
         upsert=True,
     )
+
+    # 🎉 Send welcome email only for new users
+    if is_new_user:
+        send_welcome_email(email, (name or user.get("name") or email.split('@')[0]).title())
 
     response.set_cookie(
         key="session_token",
@@ -153,6 +180,9 @@ def google_callback(response: Response, code: str):
 
     if not email:
         raise HTTPException(status_code=400, detail="Cannot get email")
+    
+    # Check if user already exists
+    existing_user = users.find_one({"email": email})
 
     token = create_session(email)
     users.update_one(
@@ -169,6 +199,13 @@ def google_callback(response: Response, code: str):
         },
         upsert=True,
     )
+
+    # Send welcome email only for new Google signups
+    if not existing_user:
+        try:
+            send_welcome_email(email, name)
+        except Exception as e:
+            print(f"Failed to send welcome email to {email}: {e}")
 
     response.set_cookie(
         key="session_token",
