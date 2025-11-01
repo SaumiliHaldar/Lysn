@@ -8,8 +8,11 @@ from dotenv import load_dotenv
 from gtts import gTTS
 from io import BytesIO
 import gridfs, os, secrets, random, PyPDF2, requests
+from datetime import datetime
+from passlib.hash import bcrypt
+import string
 
-from send_email import send_otp_email, send_welcome_email
+from send_email import send_otp_email, send_welcome_email, send_password_email, send_password_update_email
 
 # ------------------ LOAD ENV ------------------
 load_dotenv()
@@ -36,6 +39,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ------------------ PASSWORD UTILS ------------------
+def hash_password(password: str):
+    # bcrypt supports max 72 bytes — truncate if needed
+    encoded = password.encode("utf-8")
+    if len(encoded) > 72:
+        encoded = encoded[:72]
+    return bcrypt.hash(encoded.decode("utf-8", errors="ignore"))
+
+def verify_password(plain_password: str, hashed_password: str):
+    try:
+        return bcrypt.verify(plain_password, hashed_password)
+    except Exception:
+        return False
+
+def generate_temp_password(length=12):
+    chars = string.ascii_letters + string.digits + "!@#$%^&*()"
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 # ------------------ IN-MEMORY SESSIONS ------------------
 SESSIONS = {}  # { token: { "email": str, "last_active": datetime } }
@@ -70,6 +91,10 @@ def generate_otp():
 @app.get("/")
 def root():
     return {"message": "Welcome to Lysn 🎧"}
+
+@app.get("/healthz")
+async def health_check():
+    return {"message": "Lysn is active!", "status": "OK"}
 
 # ---------- AUTHENTICATION : MANUAL ----------
 @app.post("/auth/otp/request")
@@ -106,30 +131,36 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
     if datetime.utcnow() > user.get("otp_expires", datetime.utcnow()):
         raise HTTPException(status_code=401, detail="OTP expired")
 
-    # check if new registration
+    # Check if this is a new registration
     existing_user = users.find_one({"email": email})
     is_new_user = not existing_user or ("otp" in existing_user and not existing_user.get("verified"))
 
 
     token = create_session(email)
+    update_fields = {
+        "name": name if name else user.get("name", ""),
+        "auth_type": "manual",
+        "created_at": user.get("created_at", datetime.utcnow()),
+        "profile_pic": user.get("profile_pic", f"https://api.dicebear.com/9.x/identicon/svg?seed={email}"),
+        "updated_at": datetime.utcnow(),
+        "verified": True,
+    }
+
+    # 🎯 If new user, generate a strong temporary password
+    if is_new_user:
+        temp_password = generate_temp_password()
+        update_fields["password"] = hash_password(temp_password)
+        display_name = (name or user.get("name") or email.split('@')[0]).title()
+
+        send_welcome_email(email, display_name)
+        send_password_email(email, display_name, temp_password)
+
+
     users.update_one(
         {"email": email},
-        {
-            "$set": {
-                "name": name if name else user.get("name", ""),
-                "auth_type": "manual",
-                "created_at": user.get("created_at", datetime.utcnow()),
-                "profile_pic": user.get("profile_pic", f"https://api.dicebear.com/9.x/identicon/svg?seed={email}"),
-                "updated_at": datetime.utcnow(),
-            },
-            "$unset": {"otp": "", "otp_expires": ""},
-        },
+        {"$set": update_fields, "$unset": {"otp": "", "otp_expires": ""}},
         upsert=True,
     )
-
-    # 🎉 Send welcome email only for new users
-    if is_new_user:
-        send_welcome_email(email, (name or user.get("name") or email.split('@')[0]).title())
 
     response.set_cookie(
         key="session_token",
@@ -141,6 +172,78 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
     )
 
     return {"message": "OTP verified", "email": email, "name": name or user.get("name", "")}
+
+
+@app.post("/auth/login")
+def login(response: Response, email: str = Form(...), password: str = Form(...)):
+    user = users.find_one({"email": email})
+    if not user or not verify_password(password, user.get("password", "")):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_session(email)
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+        samesite="lax",
+        secure=False,
+    )
+    return {"message": "Login successful", "email": email, "name": user.get("name", "")}
+
+@app.post("/auth/set-password")
+def set_password(
+    email: str = Depends(get_current_user),
+    old_password: str = Form(...),
+    new_password: str = Form(...)
+):
+    user = users.find_one({"email": email})
+    if not user or not verify_password(old_password, user.get("password", "")):
+        raise HTTPException(status_code=401, detail="Old password incorrect")
+
+    users.update_one(
+        {"email": email},
+        {"$set": {"password": hash_password(new_password), "updated_at": datetime.utcnow()}}
+    )
+
+    # send confirmation email
+    try:
+        send_password_update_email(email, user.get("name"))
+    except Exception as e:
+        print(f"Failed to send password update email: {e}")
+
+    return {"message": "Password updated successfully"}
+
+@app.post("/auth/password/reset")
+def reset_password(email: str = Form(...)):
+    user = users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    users.update_one(
+        {"email": email},
+        {"$set": {"otp": otp, "otp_expires": expires_at, "updated_at": datetime.utcnow()}},
+    )
+
+    # send OTP mail for password reset
+    send_otp_email(email, otp, user.get("name", email.split("@")[0].title()))
+
+    return {"message": f"OTP sent to {email} for password reset"}
+
+@app.post("/auth/password/reset/verify")
+def verify_reset_password(email: str = Form(...), otp: str = Form(...)):
+    user = users.find_one({"email": email})
+    if not user or user.get("otp") != otp:
+        raise HTTPException(status_code=401, detail="Invalid OTP")
+
+    expires_at = user.get("otp_expires")
+    if not expires_at or datetime.utcnow() > expires_at:
+        raise HTTPException(status_code=401, detail="OTP expired")
+
+    return {"message": "OTP verified"}
 
 # ---------- AUTHENTICATION : GOOGLE ----------
 @app.get("/auth/google/login")
@@ -259,7 +362,18 @@ def get_audio(audio_id: str):
     except Exception:
         raise HTTPException(status_code=404, detail="Audio not found")
 
-@app.get("/audio/list")
+@app.get("/audios_list")
 def list_audios(email: str = Depends(get_current_user)):
     records = audio_metadata.find({"user": email})
-    return {"audios": [{ "audio_id": str(r["audio_id"]), "uploaded": r["uploaded"] } for r in records]}
+    audios = [
+        {
+            "audio_id": str(r["audio_id"]),
+            "uploaded": (
+                r["uploaded"].strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(r["uploaded"], datetime)
+                else str(r["uploaded"])
+            ),
+        }
+        for r in records
+    ]
+    return {"audios": audios}

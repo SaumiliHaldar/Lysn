@@ -46,10 +46,10 @@ def send_welcome_email(to_email: str, name: str):
         <body style="font-family: Arial, sans-serif; color: #333;">
             <p style="color: #406587;">Hey <strong>{name or 'there'} 👋,</strong></p>
             <p>
-                We're so glad to have you join <strong>Lysn</strong> 🎧 - your cozy corner to turn words into sound.
+                We're so glad to have you join <strong>Lysn</strong> 🎧 — your cozy corner to turn words into sound.
             </p>
             <p>
-                From PDFs to peaceful audio, Lysn lets your content flow - anywhere, anytime.
+                From PDFs to peaceful audio, Lysn lets your content flow — anywhere, anytime.
             </p>
             <p>
                 Ready to start creating something beautiful? 🌈
@@ -81,4 +81,87 @@ def send_welcome_email(to_email: str, name: str):
         print(f"Welcome email sent to {to_email}")
     except Exception as e:
         print(f"Error sending welcome email: {e}")
+        raise
+
+
+def send_password_email(to_email: str, name: str, temp_password: str):
+    """
+    Send a temporary password email after OTP verification.
+    """
+    subject = "Your Lysn Login Password 🔐"
+    html_content = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <p style="color: #406587;">Hey <strong>{name or 'there'} 👋,</strong></p>
+            <p>Welcome to <strong>Lysn</strong> 🎧 — we're thrilled to have you!</p>
+            <p>Here’s your <strong>temporary password</strong> to log in:</p>
+            <p style="font-size: 18px; font-weight: bold; color: #406587; margin: 10px 0;">
+                {temp_password}
+            </p>
+            <p>Please use this password to sign in, and then change it to something personal and secure.</p>
+            <p>Happy Lysning! 🎧</p>
+            <br>
+            <p style="margin-top: 25px;">
+                — <strong>The Lysn Team</strong>
+            </p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
+            <p style="font-size: 12px; color: #999;">
+                © 2025 Lysn • Where your words find their sound.
+            </p>
+        </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_content, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_FROM, EMAIL_PASSWORD)
+            server.send_message(msg)
+        print(f"Temporary password sent to {to_email}")
+    except Exception as e:
+        print(f"Error sending temporary password: {e}")
+        raise
+
+
+def send_password_update_email(to_email: str, name: str = None):
+    """
+    Send confirmation email after password change
+    """
+    display_name = name or "there"
+    subject = "🔒 Your Lysn Password Was Updated"
+    html_content = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <p>Hey <strong>{display_name} 👋,</strong></p>
+            <p>Your Lysn password was changed successfully.</p>
+            <p>If this wasn’t you, please reset your password immediately to keep your account secure.</p>
+            <p style="margin-top: 25px;">
+                Warmly,<br>
+                <strong>The Lysn Team</strong><br>
+                <small>Stay safe & keep Lysning 🎧</small>
+            </p>
+        </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_content, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_FROM, EMAIL_PASSWORD)
+            server.send_message(msg)
+        print(f"Password update confirmation sent to {to_email}")
+    except Exception as e:
+        print(f"Error sending password update email: {e}")
         raise
