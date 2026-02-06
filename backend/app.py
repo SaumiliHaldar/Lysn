@@ -338,7 +338,9 @@ def google_callback(response: Response, code: str):
         except Exception as e:
             print(f"Failed to send welcome email to {email}: {e}")
 
-    response.set_cookie(
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    redirect_res = RedirectResponse(frontend_url)
+    redirect_res.set_cookie(
         key="session_token",
         value=token,
         httponly=True,
@@ -346,8 +348,7 @@ def google_callback(response: Response, code: str):
         samesite="lax",
         secure=False,
     )
-
-    return {"message": "Google login successful", "email": email, "name": name, "profile_pic": profile_pic}
+    return redirect_res
 
 @app.get("/auth/me")
 def get_user_info(email: str = Depends(get_current_user)):
@@ -377,8 +378,17 @@ def upload_pdf(file: UploadFile = File(...), email: str = Depends(get_current_us
     tts.write_to_fp(audio_buffer)
     audio_buffer.seek(0)
 
-    audio_id = fs.put(audio_buffer, filename=f"{secrets.token_hex(8)}.mp3", user=email)
-    audio_metadata.insert_one({"user": email, "audio_id": audio_id, "uploaded": get_kolkata_time()})
+    # Preserve filename (remove .pdf and add .mp3)
+    base_name = os.path.splitext(file.filename)[0]
+    audio_filename = f"{base_name}.mp3"
+
+    audio_id = fs.put(audio_buffer, filename=audio_filename, user=email)
+    audio_metadata.insert_one({
+        "user": email, 
+        "audio_id": audio_id, 
+        "filename": audio_filename,
+        "uploaded": get_kolkata_time()
+    })
 
     return {"message": "Audio generated", "audio_id": str(audio_id)}
 
@@ -396,6 +406,7 @@ def list_audios(email: str = Depends(get_current_user)):
     audios = [
         {
             "audio_id": str(r["audio_id"]),
+            "filename": r.get("filename", "Untitled Audio"),
             "uploaded": (
                 r["uploaded"].strftime("%Y-%m-%d %H:%M:%S")
                 if isinstance(r["uploaded"], datetime)
