@@ -23,7 +23,13 @@ client = MongoClient(MONGO_URI)
 db = client["lysn"]
 users = db["users"]
 audio_metadata = db["audio_metadata"]
+sessions = db["sessions"]
 fs = gridfs.GridFS(db)
+
+# ------------------ HELPERS ------------------
+def get_kolkata_time():
+    """Returns the current time in Kolkata (UTC+5:30)"""
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 # Google OAuth
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -58,30 +64,47 @@ def generate_temp_password(length=12):
     chars = string.ascii_letters + string.digits + "!@#$%^&*()"
     return ''.join(secrets.choice(chars) for _ in range(length))
 
-# ------------------ IN-MEMORY SESSIONS ------------------
-SESSIONS = {}  # { token: { "email": str, "last_active": datetime } }
+# ------------------ IN-MEMORY STORAGE ------------------
+OTPS = {}      # { email: { "otp": str, "expires_at": datetime, "name": str } }
+
+# ------------------ DATABASE SESSIONS ------------------
 SESSION_TIMEOUT = timedelta(days=7)
 
 def create_session(email: str):
     token = secrets.token_urlsafe(32)
-    SESSIONS[token] = {"email": email, "last_active": datetime.utcnow()}
+    sessions.update_one(
+        {"email": email},
+        {"$set": {
+            "token": token,
+            "last_active": get_kolkata_time()
+        }},
+        upsert=True
+    )
     return token
 
 def get_current_user(session_token: str = Cookie(None)):
-    if not session_token or session_token not in SESSIONS:
-        raise HTTPException(status_code=401, detail="Not logged in or invalid session")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not logged in")
 
-    session = SESSIONS[session_token]
-    if datetime.utcnow() - session["last_active"] > SESSION_TIMEOUT:
-        del SESSIONS[session_token]
+    session = sessions.find_one({"token": session_token})
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    # Check expiration
+    if get_kolkata_time() - session["last_active"] > SESSION_TIMEOUT:
+        sessions.delete_one({"token": session_token})
         raise HTTPException(status_code=401, detail="Session expired")
 
-    # Extend session activity
-    session["last_active"] = datetime.utcnow()
+    # Extend session activity (sliding expiration)
+    sessions.update_one(
+        {"token": session_token},
+        {"$set": {"last_active": get_kolkata_time()}}
+    )
     return session["email"]
 
 def logout_user(session_token: str):
-    SESSIONS.pop(session_token, None)
+    if session_token:
+        sessions.delete_one({"token": session_token})
 
 # ------------------ HELPERS ------------------
 def generate_otp():
@@ -99,25 +122,15 @@ async def health_check():
 # ---------- AUTHENTICATION : MANUAL ----------
 @app.post("/auth/otp/request")
 def request_otp(email: str = Form(...), name: str = Form(None)):
-    otp = str(random.randint(100000, 999999))
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    otp = generate_otp()
+    expires_at = get_kolkata_time() + timedelta(minutes=5)
 
-    users.update_one(
-        {"email": email},
-        {
-            "$setOnInsert": {
-                "name": name,
-                "created_at": datetime.utcnow(),
-                "auth_type": "manual",
-            },
-            "$set": {
-                "otp": otp,
-                "otp_expires": expires_at,
-                "updated_at": datetime.utcnow(),
-            },
-        },
-        upsert=True,
-    )
+    # Store in memory only
+    OTPS[email] = {
+        "otp": otp,
+        "expires_at": expires_at,
+        "name": name
+    }
 
     send_otp_email(email, otp, name)
     return {"message": f"OTP sent to {email}"}
@@ -125,40 +138,47 @@ def request_otp(email: str = Form(...), name: str = Form(None)):
 
 @app.post("/auth/otp/verify")
 def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
-    user = users.find_one({"email": email})
-    if not user or user.get("otp") != otp:
+    otp_data = OTPS.get(email)
+    
+    if not otp_data or otp_data["otp"] != otp:
+        # Invalidate OTP on wrong attempt too? User said "immediately invalid" 
+        # but usually it's after use. Let's stick to strict invalidation if found.
+        if otp_data:
+            del OTPS[email]
         raise HTTPException(status_code=401, detail="Invalid OTP")
-    if datetime.utcnow() > user.get("otp_expires", datetime.utcnow()):
+        
+    if get_kolkata_time() > otp_data["expires_at"]:
+        del OTPS[email]
         raise HTTPException(status_code=401, detail="OTP expired")
 
-    # Check if this is a new registration
-    existing_user = users.find_one({"email": email})
-    is_new_user = not existing_user or ("otp" in existing_user and not existing_user.get("verified"))
+    # If valid, immediately invalidate
+    del OTPS[email]
 
+    # Check if user exists
+    existing_user = users.find_one({"email": email})
+    is_new_user = not existing_user
 
     token = create_session(email)
+    
     update_fields = {
-        "name": name if name else user.get("name", ""),
+        "name": name if name else (existing_user.get("name") if existing_user else otp_data.get("name", "")),
         "auth_type": "manual",
-        "created_at": user.get("created_at", datetime.utcnow()),
-        "profile_pic": user.get("profile_pic", f"https://api.dicebear.com/9.x/identicon/svg?seed={email}"),
-        "updated_at": datetime.utcnow(),
-        "verified": True,
+        "profile_pic": (existing_user.get("profile_pic") if existing_user else f"https://api.dicebear.com/9.x/identicon/svg?seed={email}"),
+        "updated_at": get_kolkata_time(),
     }
 
-    # 🎯 If new user, generate a strong temporary password
     if is_new_user:
         temp_password = generate_temp_password()
         update_fields["password"] = hash_password(temp_password)
-        display_name = (name or user.get("name") or email.split('@')[0]).title()
-
+        update_fields["created_at"] = get_kolkata_time()
+        
+        display_name = (name or otp_data.get("name") or email.split('@')[0]).title()
         send_welcome_email(email, display_name)
         send_password_email(email, display_name, temp_password)
 
-
     users.update_one(
         {"email": email},
-        {"$set": update_fields, "$unset": {"otp": "", "otp_expires": ""}},
+        {"$set": update_fields},
         upsert=True,
     )
 
@@ -171,7 +191,7 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
         secure=False,
     )
 
-    return {"message": "OTP verified", "email": email, "name": name or user.get("name", "")}
+    return {"message": "OTP verified", "email": email, "name": update_fields["name"]}
 
 
 @app.post("/auth/login")
@@ -203,7 +223,7 @@ def set_password(
 
     users.update_one(
         {"email": email},
-        {"$set": {"password": hash_password(new_password), "updated_at": datetime.utcnow()}}
+        {"$set": {"password": hash_password(new_password), "updated_at": get_kolkata_time()}}
     )
 
     # send confirmation email
@@ -221,12 +241,13 @@ def reset_password(email: str = Form(...)):
         raise HTTPException(status_code=404, detail="User not found")
 
     otp = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = get_kolkata_time() + timedelta(minutes=5)
 
-    users.update_one(
-        {"email": email},
-        {"$set": {"otp": otp, "otp_expires": expires_at, "updated_at": datetime.utcnow()}},
-    )
+    OTPS[email] = {
+        "otp": otp,
+        "expires_at": expires_at,
+        "name": user.get("name", email.split("@")[0].title())
+    }
 
     # send OTP mail for password reset
     send_otp_email(email, otp, user.get("name", email.split("@")[0].title()))
@@ -235,14 +256,21 @@ def reset_password(email: str = Form(...)):
 
 @app.post("/auth/password/reset/verify")
 def verify_reset_password(email: str = Form(...), otp: str = Form(...)):
-    user = users.find_one({"email": email})
-    if not user or user.get("otp") != otp:
+    otp_data = OTPS.get(email)
+    
+    if not otp_data or otp_data["otp"] != otp:
+        if otp_data:
+            del OTPS[email]
         raise HTTPException(status_code=401, detail="Invalid OTP")
 
-    expires_at = user.get("otp_expires")
-    if not expires_at or datetime.utcnow() > expires_at:
+    if get_kolkata_time() > otp_data["expires_at"]:
+        del OTPS[email]
         raise HTTPException(status_code=401, detail="OTP expired")
 
+    # On success, keep it or delete? 
+    # Usually you verify then redirect to set-password. 
+    # For now I will delete it to follow "once used becomes invalid".
+    del OTPS[email]
     return {"message": "OTP verified"}
 
 # ---------- AUTHENTICATION : GOOGLE ----------
@@ -296,9 +324,9 @@ def google_callback(response: Response, code: str):
                 "email": email,
                 "auth_type": "google",
                 "profile_pic": profile_pic,
-                "updated_at": datetime.utcnow(),
+                "updated_at": get_kolkata_time(),
             },
-            "$setOnInsert": {"created_at": datetime.utcnow()},
+            "$setOnInsert": {"created_at": get_kolkata_time()},
         },
         upsert=True,
     )
@@ -350,7 +378,7 @@ def upload_pdf(file: UploadFile = File(...), email: str = Depends(get_current_us
     audio_buffer.seek(0)
 
     audio_id = fs.put(audio_buffer, filename=f"{secrets.token_hex(8)}.mp3", user=email)
-    audio_metadata.insert_one({"user": email, "audio_id": audio_id, "uploaded": datetime.utcnow()})
+    audio_metadata.insert_one({"user": email, "audio_id": audio_id, "uploaded": get_kolkata_time()})
 
     return {"message": "Audio generated", "audio_id": str(audio_id)}
 

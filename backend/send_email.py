@@ -61,7 +61,7 @@ def send_welcome_email(to_email: str, name: str):
             </p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
             <p style="font-size: 12px; color: #999;">
-                © 2025 Lysn • Where your words find their sound.
+                © 2026 Lysn • Where your words find their sound.
             </p>
         </body>
     </html>
@@ -106,7 +106,7 @@ def send_password_email(to_email: str, name: str, temp_password: str):
             </p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
             <p style="font-size: 12px; color: #999;">
-                © 2025 Lysn • Where your words find their sound.
+                © 2026 Lysn • Where your words find their sound.
             </p>
         </body>
     </html>
