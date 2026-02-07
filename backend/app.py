@@ -255,10 +255,13 @@ def reset_password(email: str = Form(...)):
     return {"message": f"OTP sent to {email} for password reset"}
 
 @app.post("/auth/password/reset/verify")
-def verify_reset_password(email: str = Form(...), otp: str = Form(...)):
+def verify_reset_password(email: str = Form(...), otp: str = Form(...), new_password: str = Form(None)):
     otp_data = OTPS.get(email)
     
     if not otp_data or otp_data["otp"] != otp:
+        # Invalidate OTP on wrong attempt? Keeping it simple for now as per previous logic
+        # If we invalidate immediately on wrong attempt, it prevents brute forcing but might be annoying.
+        # Let's clean up only if it exists to prevent probing?
         if otp_data:
             del OTPS[email]
         raise HTTPException(status_code=401, detail="Invalid OTP")
@@ -267,10 +270,27 @@ def verify_reset_password(email: str = Form(...), otp: str = Form(...)):
         del OTPS[email]
         raise HTTPException(status_code=401, detail="OTP expired")
 
-    # On success, keep it or delete? 
-    # Usually you verify then redirect to set-password. 
-    # For now I will delete it to follow "once used becomes invalid".
-    del OTPS[email]
+    # If new_password is provided, update the password and consume the OTP
+    if new_password:
+        users.update_one(
+            {"email": email},
+            {"$set": {"password": hash_password(new_password), "updated_at": get_kolkata_time()}}
+        )
+        del OTPS[email]
+        
+        # Send confirmation email
+        user = users.find_one({"email": email})
+        try:
+            send_password_update_email(email, user.get("name"))
+        except Exception:
+            pass
+            
+        return {"message": "Password reset successfully"}
+    
+    # If no new_password, just verify (OTP is valid)
+    # DO NOT delete OTP here, so the next call with new_password can succeed.
+    # However, to prevent replay attacks or reuse, robust systems use a temp token.
+    # Given the constraints, we rely on the OTP remaining valid until used for reset or expired.
     return {"message": "OTP verified"}
 
 # ---------- AUTHENTICATION : GOOGLE ----------
@@ -367,6 +387,18 @@ def upload_pdf(file: UploadFile = File(...), email: str = Depends(get_current_us
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF allowed")
 
+    # Preserve filename (remove .pdf and add .mp3)
+    base_name = os.path.splitext(file.filename)[0]
+    audio_filename = f"{base_name}.mp3"
+    
+    # Check if audio with same filename already exists for this user
+    existing_audio = audio_metadata.find_one({"user": email, "filename": audio_filename})
+    if existing_audio:
+        raise HTTPException(
+            status_code=409, 
+            detail=f"File '{audio_filename}' already exists in your library. Please delete the previous file or rename this one before uploading."
+        )
+
     pdf_reader = PyPDF2.PdfReader(file.file)
     text = "".join([page.extract_text() or "" for page in pdf_reader.pages])
 
@@ -377,10 +409,6 @@ def upload_pdf(file: UploadFile = File(...), email: str = Depends(get_current_us
     audio_buffer = BytesIO()
     tts.write_to_fp(audio_buffer)
     audio_buffer.seek(0)
-
-    # Preserve filename (remove .pdf and add .mp3)
-    base_name = os.path.splitext(file.filename)[0]
-    audio_filename = f"{base_name}.mp3"
 
     audio_id = fs.put(audio_buffer, filename=audio_filename, user=email)
     audio_metadata.insert_one({
@@ -416,3 +444,24 @@ def list_audios(email: str = Depends(get_current_user)):
         for r in records
     ]
     return {"audios": audios}
+
+@app.delete("/audio/{audio_id}")
+def delete_audio(audio_id: str, email: str = Depends(get_current_user)):
+    """Delete audio file from GridFS and metadata from database"""
+    try:
+        # Verify the audio belongs to the user
+        metadata = audio_metadata.find_one({"audio_id": ObjectId(audio_id), "user": email})
+        if not metadata:
+            raise HTTPException(status_code=404, detail="Audio not found or unauthorized")
+        
+        # Delete from GridFS (this removes all chunks automatically)
+        fs.delete(ObjectId(audio_id))
+        
+        # Delete metadata from database
+        audio_metadata.delete_one({"audio_id": ObjectId(audio_id)})
+        
+        return {"message": "Audio deleted successfully", "audio_id": audio_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete audio: {str(e)}")
