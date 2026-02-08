@@ -2,6 +2,7 @@ import os, smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -40,6 +41,7 @@ def send_welcome_email(to_email: str, name: str):
     """
     Send a friendly welcome email after successful registration
     """
+    current_year = datetime.now().year
     subject = "🎉 Welcome to Lysn! 🎧"
     html_content = f"""
     <html>
@@ -61,7 +63,7 @@ def send_welcome_email(to_email: str, name: str):
             </p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
             <p style="font-size: 12px; color: #999;">
-                © 2026 Lysn • Where your words find their sound.
+                © {current_year} Lysn • Where your words find their sound.
             </p>
         </body>
     </html>
@@ -88,6 +90,7 @@ def send_password_email(to_email: str, name: str, temp_password: str):
     """
     Send a temporary password email after OTP verification.
     """
+    current_year = datetime.now().year
     subject = "Your Lysn Login Password 🔐"
     html_content = f"""
     <html>
@@ -106,7 +109,7 @@ def send_password_email(to_email: str, name: str, temp_password: str):
             </p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
             <p style="font-size: 12px; color: #999;">
-                © 2026 Lysn • Where your words find their sound.
+                © {current_year} Lysn • Where your words find their sound.
             </p>
         </body>
     </html>

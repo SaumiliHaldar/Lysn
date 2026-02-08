@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, Response, Cookie
+from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, Response, Cookie, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
@@ -9,8 +9,9 @@ from gtts import gTTS
 from io import BytesIO
 import gridfs, os, secrets, random, PyPDF2, requests
 from datetime import datetime
-from passlib.hash import bcrypt
+import bcrypt
 import string
+from mutagen.mp3 import MP3
 
 from send_email import send_otp_email, send_welcome_email, send_password_email, send_password_update_email
 
@@ -23,6 +24,13 @@ client = MongoClient(MONGO_URI)
 db = client["lysn"]
 users = db["users"]
 audio_metadata = db["audio_metadata"]
+# Ensure unique index on (user, filename) to prevent duplicates per user
+try:
+    audio_metadata.create_index([("user", 1), ("filename", 1)], unique=True)
+    print("✓ Indexing check complete: unique constraint on (user, filename) enforced.")
+except Exception as e:
+    print(f"Warning: Could not create unique index on audio_metadata: {e}")
+
 sessions = db["sessions"]
 fs = gridfs.GridFS(db)
 
@@ -48,16 +56,33 @@ app.add_middleware(
 
 # ------------------ PASSWORD UTILS ------------------
 def hash_password(password: str):
-    # bcrypt supports max 72 bytes — truncate if needed
+    # bcrypt supports max 72 bytes
     encoded = password.encode("utf-8")
     if len(encoded) > 72:
         encoded = encoded[:72]
-    return bcrypt.hash(encoded.decode("utf-8", errors="ignore"))
+    
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(encoded, salt)
+    return hashed.decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str):
     try:
-        return bcrypt.verify(plain_password, hashed_password)
-    except Exception:
+        # Check password
+        if not hashed_password:
+            return False
+            
+        # Ensure bytes
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode("utf-8")
+            
+        plain_encoded = plain_password.encode("utf-8")
+        if len(plain_encoded) > 72:
+            plain_encoded = plain_encoded[:72]
+            
+        return bcrypt.checkpw(plain_encoded, hashed_password)
+    except Exception as e:
+        print(f"Password verification errored: {e}")
         return False
 
 def generate_temp_password(length=12):
@@ -410,23 +435,66 @@ def upload_pdf(file: UploadFile = File(...), email: str = Depends(get_current_us
     tts.write_to_fp(audio_buffer)
     audio_buffer.seek(0)
 
+    # Store audio in GridFS
     audio_id = fs.put(audio_buffer, filename=audio_filename, user=email)
+    
+    # Calculate duration from the generated MP3
+    audio_buffer.seek(0)
+    try:
+        audio_info = MP3(audio_buffer)
+        duration_seconds = audio_info.info.length
+    except Exception:
+        duration_seconds = 0  # Fallback if duration can't be calculated
+    
     audio_metadata.insert_one({
         "user": email, 
         "audio_id": audio_id, 
         "filename": audio_filename,
+        "duration": duration_seconds,
         "uploaded": get_kolkata_time()
     })
 
-    return {"message": "Audio generated", "audio_id": str(audio_id)}
+    return {"message": "Audio generated", "audio_id": str(audio_id), "duration": duration_seconds}
 
 @app.get("/audio/{audio_id}")
-def get_audio(audio_id: str):
+def get_audio(audio_id: str, request: Request):
     try:
+        if not ObjectId.is_valid(audio_id):
+            raise HTTPException(status_code=400, detail="Invalid audio ID")
+
         file = fs.get(ObjectId(audio_id))
-        return StreamingResponse(file, media_type="audio/mpeg")
-    except Exception:
+        file_size = file.length
+        
+        range_header = request.headers.get("range")
+        if not range_header:
+            return StreamingResponse(file, media_type="audio/mpeg", headers={"Accept-Ranges": "bytes"})
+            
+        start, end = range_header.replace("bytes=", "").split("-")
+        start = int(start)
+        end = int(end) if end else file_size - 1
+        
+        if start >= file_size:
+            raise HTTPException(status_code=416, detail="Range not satisfiable")
+            
+        chunk_size = end - start + 1
+        file.seek(start)
+        
+        def iterfile():
+            yield file.read(chunk_size)
+            
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(chunk_size),
+        }
+        
+        return StreamingResponse(iterfile(), status_code=206, media_type="audio/mpeg", headers=headers)
+        
+    except gridfs.errors.NoFile:
         raise HTTPException(status_code=404, detail="Audio not found")
+    except Exception as e:
+        print(f"Error serving audio: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/audios_list")
 def list_audios(email: str = Depends(get_current_user)):
@@ -435,6 +503,7 @@ def list_audios(email: str = Depends(get_current_user)):
         {
             "audio_id": str(r["audio_id"]),
             "filename": r.get("filename", "Untitled Audio"),
+            "duration": r.get("duration", 0),
             "uploaded": (
                 r["uploaded"].strftime("%Y-%m-%d %H:%M:%S")
                 if isinstance(r["uploaded"], datetime)
