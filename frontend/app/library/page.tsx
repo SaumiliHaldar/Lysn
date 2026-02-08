@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Library as LibraryIcon, PlayCircle, Trash2, Clock, FileAudio, Search, Filter } from "lucide-react";
+import { Library as LibraryIcon, PlayCircle, Trash2, Clock, FileAudio, Search, Filter, PauseCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioPlayer } from "@/components/audio-player";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ export default function LibraryPage() {
     filename: "",
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const { playAudio: playAudioGlobal, currentAudio } = useAudioPlayer();
+  const { playAudio: playAudioGlobal, currentAudio, isPlaying, togglePlay, isPlayerOpen } = useAudioPlayer();
 
   useEffect(() => {
     fetchData();
@@ -49,6 +49,11 @@ export default function LibraryPage() {
   };
 
   const playAudio = (audio: any, index: number) => {
+    if (currentAudio?.audio_id === audio.audio_id) {
+        togglePlay();
+        return;
+    }
+
     const audioWithUrl = {
       ...audio,
       url: api.audio.getUrl(audio.audio_id)
@@ -102,31 +107,31 @@ export default function LibraryPage() {
   );
 
   return (
-    <div className={`min-h-screen bg-background pt-24 pb-12 transition-all duration-500 ease-in-out ${currentAudio ? 'mr-[320px]' : ''}`}>
+    <div className={`min-h-screen bg-background pt-20 sm:pt-24 pb-12 transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <LibraryIcon className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Your Library</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Your Library</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">
                 {audios.length} {audios.length === 1 ? 'audio file' : 'audio files'}
               </p>
             </div>
           </div>
 
           {/* Search Bar */}
-          <div className="relative max-w-md">
+          <div className="relative max-w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search your library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm sm:text-base"
             />
           </div>
         </div>
@@ -153,7 +158,7 @@ export default function LibraryPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <AnimatePresence mode="popLayout">
               {filteredAudios.map((audio, index) => (
                 <motion.div
@@ -162,7 +167,7 @@ export default function LibraryPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ delay: index * 0.05 }}
-                  className="group relative rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+                  className="group relative rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-5 sm:p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
                 >
                   {/* Audio Icon */}
                   <div className="flex items-start justify-between mb-4">
@@ -199,8 +204,14 @@ export default function LibraryPage() {
                     onClick={() => playAudio(audio, index)}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-lg shadow-primary/20"
                   >
-                    <PlayCircle className="h-4 w-4" />
-                    <span className="font-medium">Play Audio</span>
+                    {currentAudio?.audio_id === audio.audio_id && isPlaying ? (
+                        <PauseCircle className="h-4 w-4" />
+                    ) : (
+                        <PlayCircle className="h-4 w-4" />
+                    )}
+                    <span className="font-medium">
+                        {currentAudio?.audio_id === audio.audio_id && isPlaying ? "Pause Audio" : "Play Audio"}
+                    </span>
                   </button>
                 </motion.div>
               ))}

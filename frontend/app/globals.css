@@ -82,3 +82,39 @@ body {
     border-color: var(--color-border);
   }
 }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-muted-foreground);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Mobile Safe Area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Touch Action */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on buttons */
+button {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}

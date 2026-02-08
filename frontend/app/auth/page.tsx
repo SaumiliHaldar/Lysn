@@ -116,7 +116,7 @@ export default function AuthPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "Invalid OTP");
+      toast.error(err.message || "Invalid OTP");
     } finally {
       setIsLoading(false);
     }
@@ -139,6 +139,21 @@ export default function AuthPage() {
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validatePassword = (pwd: string) => {
+      if (pwd.length < 6) return "Password must be at least 6 characters long";
+      if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter";
+      if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter";
+      if (!/[0-9]/.test(pwd)) return "Password must contain at least one number";
+      if (!/[^A-Za-z0-9]/.test(pwd)) return "Password must contain at least one special character";
+      return null;
+    };
+
+    const validationError = validatePassword(newPassword);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     try {
@@ -200,8 +215,8 @@ export default function AuthPage() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md overflow-hidden rounded-3xl border border-border/50 bg-background shadow-2xl"
       >
-        <div className="p-8">
-          <div className="mb-6 flex flex-col items-center text-center">
+        <div className="p-6">
+          <div className="mb-4 flex flex-col items-center text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Headphones className="h-6 w-6" />
             </div>
@@ -235,7 +250,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleRequestOtp}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-sm font-medium mb-1.5 ml-1">Name</label>
@@ -311,7 +326,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handlePasswordLogin}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-sm font-medium mb-1.5 ml-1">Email Address</label>
@@ -344,7 +359,7 @@ export default function AuthPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3.5 top-3 text-muted-foreground hover:text-foreground"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -406,7 +421,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleRequestOtp}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-sm font-medium mb-1.5 ml-1">Email Address</label>
@@ -448,7 +463,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleVerifyOtp}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-sm font-medium mb-1.5 ml-1 text-center">Enter Code</label>
@@ -501,7 +516,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleSetPassword}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   {mode !== "forgot-password" && (
@@ -522,7 +537,7 @@ export default function AuthPage() {
                           onClick={() => setShowOldPassword(!showOldPassword)}
                           className="absolute right-3.5 top-3 text-muted-foreground hover:text-foreground"
                         >
-                          {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showOldPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </button>
                       </div>
                     </>
@@ -545,7 +560,7 @@ export default function AuthPage() {
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       className="absolute right-3.5 top-3 text-muted-foreground hover:text-foreground"
                     >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showNewPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -577,7 +592,7 @@ export default function AuthPage() {
           </AnimatePresence>
         </div>
 
-        <div className="border-t border-border/50 bg-secondary/30 px-8 py-3.5">
+        <div className="border-t border-border/50 bg-secondary/30 px-6 py-2.5">
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5" />
             Your data is protected and secure

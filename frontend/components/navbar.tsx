@@ -43,14 +43,14 @@ export function Navbar() {
           : "bg-background/60 backdrop-blur-md border-b border-border/30"
       }`}
     >
-      <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out ${isPlayerOpen ? 'mr-[320px]' : ''}`}>
-        <div className="flex h-20 items-center justify-between">
+      <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
+        <div className="flex h-16 sm:h-20 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-primary/30">
-              <Headphones className="h-6 w-6" />
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-primary/30">
+              <Headphones className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
               Lysn
             </span>
           </Link>
@@ -92,7 +92,7 @@ export function Navbar() {
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors active:scale-95"
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -133,7 +133,7 @@ export function Navbar() {
                 <Link
                   href="/auth"
                   onClick={() => setIsOpen(false)}
-                  className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all"
+                  className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all active:scale-95"
                 >
                   Login
                 </Link>

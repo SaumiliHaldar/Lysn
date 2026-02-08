@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { UploadZone } from "@/components/upload-zone";
 import { api } from "@/lib/api";
-import { Headphones, Library, LogOut, User, Clock, PlayCircle, Trash2 } from "lucide-react";
+import { Headphones, Library, LogOut, User, Clock, PlayCircle, Trash2, PauseCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioPlayer } from "@/components/audio-player";
 import { useRouter } from "next/navigation";
@@ -31,7 +31,7 @@ export default function DashboardPage() {
     filename: "",
   });
   const router = useRouter();
-  const { playAudio: playAudioGlobal, currentAudio } = useAudioPlayer();
+  const { playAudio: playAudioGlobal, currentAudio, isPlaying, togglePlay, isPlayerOpen } = useAudioPlayer();
 
   useEffect(() => {
     fetchData();
@@ -56,6 +56,11 @@ export default function DashboardPage() {
   };
 
   const playAudio = (audio: any, index: number) => {
+    if (currentAudio?.audio_id === audio.audio_id) {
+        togglePlay();
+        return;
+    }
+
     const audioWithUrl = {
       ...audio,
       url: api.audio.getUrl(audio.audio_id)
@@ -97,11 +102,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className={`mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out ${currentAudio ? 'mr-[320px]' : ''}`}>
+    <div className={`mx-auto max-w-7xl px-4 py-6 sm:py-8 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
       {/* Header */}
-      <div className="mb-12 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-8 sm:mb-12 flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-2xl bg-primary/10">
+          <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-2xl bg-primary/10">
              {user?.profile_pic ? (
                <img src={user.profile_pic} alt={user.name} className="h-full w-full object-cover" />
              ) : (
@@ -111,13 +116,13 @@ export default function DashboardPage() {
              )}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Welcome back, {user?.name || "Listener"}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Welcome back, {user?.name || "Listener"}</h1>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 self-start rounded-full border border-border/50 bg-background/50 px-4 py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all"
+          className="flex items-center gap-2 self-start rounded-full border border-border/50 bg-background/50 px-4 py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all active:scale-95"
         >
           <LogOut className="h-3.5 w-3.5" />
           Logout
@@ -134,7 +139,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold">New Conversion</h2>
           </div>
           <UploadZone onSuccess={() => fetchData()} />
-          <p className="text-xs text-muted-foreground bg-secondary/30 p-4 rounded-2xl leading-relaxed">
+          <p className="text-xs text-muted-foreground bg-secondary/30 p-4 rounded-2xl leading-relaxed max-w-2xl mx-auto w-full">
             <span className="font-semibold text-foreground">Pro Tip:</span> For the best results, ensure your PDF has a clear heading structure. Our AI works best with structured text.
           </p>
         </div>
@@ -153,9 +158,9 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="max-h-[365px] space-y-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar">
+          <div className="max-h-[365px] space-y-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar w-full max-w-2xl mx-auto">
             {audios.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center rounded-3xl border border-dashed">
+              <div className="flex flex-col items-center justify-center min-h-[280px] p-12 text-center rounded-3xl border-2 border-dashed border-border/50 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40 transition-all">
                 <Library className="h-10 w-10 text-muted-foreground/30 mb-4" />
                 <p className="text-sm font-medium text-muted-foreground">Your library is empty</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Convert your first PDF to see it here</p>
@@ -183,9 +188,13 @@ export default function DashboardPage() {
                     <button
                       onClick={() => playAudio(audio, i)}
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground transition-all hover:bg-primary hover:text-primary-foreground group-hover:scale-105"
-                      title="Play audio"
+                      title={currentAudio?.audio_id === audio.audio_id && isPlaying ? "Pause audio" : "Play audio"}
                     >
-                      <PlayCircle className="h-5 w-5" />
+                      {currentAudio?.audio_id === audio.audio_id && isPlaying ? (
+                        <PauseCircle className="h-5 w-5" />
+                      ) : (
+                        <PlayCircle className="h-5 w-5" />
+                      )}
                     </button>
                     <button
                       onClick={() => handleDelete(audio.audio_id, audio.filename)}
