@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Headphones, Github, Linkedin, Heart } from "lucide-react";
+import { Headphones, Github, Linkedin, Heart, Mail } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/audio-player-context";
 
 export function Footer() {
@@ -32,6 +32,7 @@ export function Footer() {
             <div className="flex items-center gap-3">
               <SocialLink href="https://github.com/SaumiliHaldar" icon={<Github className="h-4 w-4" />} label="GitHub" />
               <SocialLink href="https://www.linkedin.com/in/saumili-haldar-0804s2003/" icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" />
+              <SocialLink href="mailto:haldar.saumili843@gmail.com" icon={<Mail className="h-4 w-4" />} label="Email" />
             </div>
           </div>
 
@@ -43,6 +44,7 @@ export function Footer() {
                 <FooterLink href="/#features">Features</FooterLink>
                 <FooterLink href="/library">Library</FooterLink>
                 <FooterLink href="/dashboard">Dashboard</FooterLink>
+                <FooterLink href="/about">About</FooterLink>
               </ul>
             </div>
 
@@ -52,6 +54,7 @@ export function Footer() {
                 <FooterLink href="#">Privacy</FooterLink>
                 <FooterLink href="#">Terms</FooterLink>
                 <FooterLink href="#">Support</FooterLink>
+                <FooterLink href="#">Cookies</FooterLink>
               </ul>
             </div>
           </div>

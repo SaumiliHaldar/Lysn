@@ -59,6 +59,7 @@ export function Navbar() {
           <div className="hidden md:flex items-center">
             <div className="flex items-center space-x-1">
               <NavLink href="/" isActive={pathname === "/"}>Home</NavLink>
+              <NavLink href="/about" isActive={pathname === "/about"}>About</NavLink>
               <NavLink href="/library" isActive={pathname === "/library"}>Library</NavLink>
               
               {user ? (
@@ -110,8 +111,9 @@ export function Navbar() {
             className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl"
           >
             <div className="space-y-1 px-4 pb-6 pt-4">
-              <MobileNavLink href="/" isActive={pathname === "/"}>Home</MobileNavLink>
-              <MobileNavLink href="/library" isActive={pathname === "/library"}>Library</MobileNavLink>
+              <MobileNavLink href="/" isActive={pathname === "/"} onClick={() => setIsOpen(false)}>Home</MobileNavLink>
+              <MobileNavLink href="/about" isActive={pathname === "/about"} onClick={() => setIsOpen(false)}>About</MobileNavLink>
+              <MobileNavLink href="/library" isActive={pathname === "/library"} onClick={() => setIsOpen(false)}>Library</MobileNavLink>
               
               {user ? (
                 <div className="mt-4 flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/50 backdrop-blur-sm">
@@ -162,10 +164,11 @@ function NavLink({ href, children, isActive }: { href: string; children: React.R
   );
 }
 
-function MobileNavLink({ href, children, isActive }: { href: string; children: React.ReactNode; isActive?: boolean }) {
+function MobileNavLink({ href, children, isActive, onClick }: { href: string; children: React.ReactNode; isActive?: boolean; onClick?: () => void }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`block rounded-xl px-4 py-3 text-base font-medium transition-all backdrop-blur-sm ${
         isActive
           ? "bg-primary/10 text-foreground"
