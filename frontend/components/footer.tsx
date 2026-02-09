@@ -65,7 +65,7 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>Made with</span>
-              <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+              <Heart className="h-3 w-3 text-purple-500 fill-purple-500" />
               <span>by Saumili Haldar</span>
             </div>
           </div>
