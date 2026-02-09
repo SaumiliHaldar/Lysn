@@ -47,15 +47,26 @@ REDIRECT_URI = os.getenv("REDIRECT_URI")
 # FastAPI setup
 app = FastAPI(title="Lysn 🎧")
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# Get allowed origins (comma separated)
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def get_cookie_settings(origin: str):
+    """Determine cookie settings based on the request origin."""
+    is_https = origin and origin.startswith("https://")
+    return {
+        "httponly": True,
+        "max_age": 7 * 24 * 60 * 60,
+        "samesite": "none" if is_https else "lax",
+        "secure": is_https,
+    }
 
 # ------------------ PASSWORD UTILS ------------------
 def hash_password(password: str):
@@ -210,13 +221,13 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
         upsert=True,
     )
 
+    origin = response.headers.get("access-control-allow-origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
+    cookie_settings = get_cookie_settings(origin)
+
     response.set_cookie(
         key="session_token",
         value=token,
-        httponly=True,
-        max_age=7 * 24 * 60 * 60,
-        samesite="lax",
-        secure=False,
+        **cookie_settings
     )
 
     return {"message": "OTP verified", "email": email, "name": update_fields["name"]}
@@ -229,13 +240,13 @@ def login(response: Response, email: str = Form(...), password: str = Form(...))
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_session(email)
+    origin = response.headers.get("access-control-allow-origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
+    cookie_settings = get_cookie_settings(origin)
+
     response.set_cookie(
         key="session_token",
         value=token,
-        httponly=True,
-        max_age=7 * 24 * 60 * 60,
-        samesite="lax",
-        secure=False,
+        **cookie_settings
     )
     return {"message": "Login successful", "email": email, "name": user.get("name", "")}
 
@@ -386,15 +397,31 @@ def google_callback(response: Response, code: str):
         except Exception as e:
             print(f"Failed to send welcome email to {email}: {e}")
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    redirect_res = RedirectResponse(frontend_url)
+    # Determine redirect URL based on content of state or referrer? 
+    # For now, we need to know where the user came from. 
+    # Since Google Auth flow is a redirect, we might lose the 'Referer' header.
+    # A robust way is to pass 'state' param with the origin.
+    # PROPLEM: We aren't using 'state' yet.
+    # FALLBACK: We can't easily know in this specific endpoint without 'state'.
+    # We will assume the first HTTPS origin if available, else the first allowed origin.
+    
+    target_origin = ALLOWED_ORIGINS[0]
+    # Simple heuristic: If we have multiple, try to find the production one (https) 
+    # But ideally, we should respect where the user started.
+    # For now, valid origins are usually [localhost, production].
+    # Let's default to ALLOWED_ORIGINS[0] but user can check env var order.
+    # BETTER: Use FRONTEND_URL env var as primary redirect target if specific logic isn't added.
+    # Let's stick to the first allowed origin for the redirect destination.
+    
+    redirect_res = RedirectResponse(target_origin)
+    
+    # We can try to guess origin context for cookies from the target_origin string
+    cookie_settings = get_cookie_settings(target_origin)
+    
     redirect_res.set_cookie(
         key="session_token",
         value=token,
-        httponly=True,
-        max_age=7 * 24 * 60 * 60,
-        samesite="lax",
-        secure=False,
+        **cookie_settings,
     )
     return redirect_res
 
