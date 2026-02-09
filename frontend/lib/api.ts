@@ -48,7 +48,7 @@ export const api = {
     setPassword: (oldPassword: string, newPassword: string) => 
         postForm('/auth/set-password', { old_password: oldPassword, new_password: newPassword }),
 
-    googleLoginUrl: `${API_URL}/auth/google/login`,
+    googleLoginUrl: (origin?: string) => `${API_URL}/auth/google/login${origin ? `?origin=${encodeURIComponent(origin)}` : ''}`,
   },
   audio: {
     list: () => fetchAPI('/audios_list', { headers: { 'Content-Type': 'application/json' } }),

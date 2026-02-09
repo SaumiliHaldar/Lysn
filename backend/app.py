@@ -176,7 +176,7 @@ def request_otp(email: str = Form(...), name: str = Form(None)):
 
 
 @app.post("/auth/otp/verify")
-def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
+def verify_otp(request: Request, response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
     otp_data = OTPS.get(email)
     
     if not otp_data or otp_data["otp"] != otp:
@@ -221,7 +221,7 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
         upsert=True,
     )
 
-    origin = response.headers.get("access-control-allow-origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
+    origin = request.headers.get("origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
     cookie_settings = get_cookie_settings(origin)
 
     response.set_cookie(
@@ -234,13 +234,13 @@ def verify_otp(response: Response, email: str = Form(...), otp: str = Form(...),
 
 
 @app.post("/auth/login")
-def login(response: Response, email: str = Form(...), password: str = Form(...)):
+def login(request: Request, response: Response, email: str = Form(...), password: str = Form(...)):
     user = users.find_one({"email": email})
     if not user or not verify_password(password, user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_session(email)
-    origin = response.headers.get("access-control-allow-origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
+    origin = request.headers.get("origin") or (ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000")
     cookie_settings = get_cookie_settings(origin)
 
     response.set_cookie(
@@ -334,18 +334,21 @@ def verify_reset_password(email: str = Form(...), otp: str = Form(...), new_pass
 
 # ---------- AUTHENTICATION : GOOGLE ----------
 @app.get("/auth/google/login")
-def google_login():
+def google_login(origin: str = None):
+    # Use origin as state to maintain context through the OAuth flow
+    state = origin or ALLOWED_ORIGINS[0]
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         "?response_type=code"
         f"&client_id={GOOGLE_CLIENT_ID}"
         f"&redirect_uri={REDIRECT_URI}"
         "&scope=openid email profile"
+        f"&state={state}"
     )
     return RedirectResponse(auth_url)
 
 @app.get("/auth/google/callback")
-def google_callback(response: Response, code: str):
+def google_callback(response: Response, code: str, state: str = None):
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
@@ -405,14 +408,17 @@ def google_callback(response: Response, code: str):
     # FALLBACK: We can't easily know in this specific endpoint without 'state'.
     # We will assume the first HTTPS origin if available, else the first allowed origin.
     
-    target_origin = ALLOWED_ORIGINS[0]
-    # Simple heuristic: If we have multiple, try to find the production one (https) 
-    # But ideally, we should respect where the user started.
-    # For now, valid origins are usually [localhost, production].
-    # Let's default to ALLOWED_ORIGINS[0] but user can check env var order.
-    # BETTER: Use FRONTEND_URL env var as primary redirect target if specific logic isn't added.
-    # Let's stick to the first allowed origin for the redirect destination.
+    # Determine target origin from state (passed in google_login)
+    target_origin = state if state in ALLOWED_ORIGINS else ALLOWED_ORIGINS[0]
     
+    # If state isn't a known origin, try to find the production one if this is a secure request
+    if target_origin not in ALLOWED_ORIGINS and len(ALLOWED_ORIGINS) > 1:
+        # Prefer HTTPS if available
+        for o in ALLOWED_ORIGINS:
+            if o.startswith("https://"):
+                target_origin = o
+                break
+
     redirect_res = RedirectResponse(target_origin)
     
     # We can try to guess origin context for cookies from the target_origin string

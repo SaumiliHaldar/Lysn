@@ -60,14 +60,13 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-border/30">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-muted-foreground text-center sm:text-left flex items-center justify-center sm:justify-start gap-1 flex-wrap">
-              <span>&copy; {currentYear} Lysn. All rights reserved. Made with</span>
+            <p className="text-xs text-muted-foreground">
+              &copy; {currentYear} Lysn. All rights reserved.
+            </p>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Made with</span>
               <Heart className="h-3 w-3 text-red-500 fill-red-500" />
               <span>by Saumili Haldar</span>
-            </p>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-muted-foreground">All systems operational</span>
             </div>
           </div>
         </div>

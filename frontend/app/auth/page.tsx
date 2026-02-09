@@ -302,7 +302,7 @@ export default function AuthPage() {
                 </div>
 
                 <a
-                  href={api.auth.googleLoginUrl}
+                  href={api.auth.googleLoginUrl(typeof window !== "undefined" ? window.location.origin : undefined)}
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-border/50 bg-background py-2.5 text-sm font-medium transition-all hover:bg-secondary/50"
                 >
                   <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" className="h-5 w-5" />
@@ -397,7 +397,7 @@ export default function AuthPage() {
                 </div>
 
                 <a
-                  href={api.auth.googleLoginUrl}
+                  href={api.auth.googleLoginUrl(typeof window !== "undefined" ? window.location.origin : undefined)}
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-border/50 bg-background py-2.5 text-sm font-medium transition-all hover:bg-secondary/50"
                 >
                   <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" className="h-5 w-5" />
