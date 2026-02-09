@@ -46,6 +46,9 @@ REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 # FastAPI setup
 app = FastAPI(title="Lysn 🎧")
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
