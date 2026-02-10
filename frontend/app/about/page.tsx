@@ -169,7 +169,7 @@ function SocialBtn({ href, icon, label }: { href: string; icon: React.ReactNode;
       className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-xl border border-border/50 bg-background/50 hover:bg-secondary transition-all hover:border-primary/40 active:scale-95 group"
     >
       <span className="text-muted-foreground group-hover:text-primary transition-colors">{icon}</span>
-      <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">{label}</span>
+      <span className="hidden sm:inline text-xs sm:text-sm font-semibold whitespace-nowrap">{label}</span>
     </Link>
   );
 }

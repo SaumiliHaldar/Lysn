@@ -1,5 +1,15 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    this.name = 'ApiError';
+  }
+}
+
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -11,7 +21,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.message || 'An error occurred');
+    throw new ApiError(error.message || 'An error occurred', res.status);
   }
 
   return res.json();
@@ -68,7 +78,7 @@ export const api = {
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'Upload failed');
+        throw new ApiError(error.message || 'Upload failed', res.status);
       }
 
       return res.json();

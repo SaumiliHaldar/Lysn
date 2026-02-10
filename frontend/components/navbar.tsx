@@ -116,7 +116,11 @@ export function Navbar() {
               <MobileNavLink href="/library" isActive={pathname === "/library"} onClick={() => setIsOpen(false)}>Library</MobileNavLink>
               
               {user ? (
-                <div className="mt-4 flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/50 backdrop-blur-sm">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="mt-4 flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/50 backdrop-blur-sm hover:bg-secondary/70 transition-colors"
+                >
                   <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/20 bg-secondary text-primary">
                     {user.profile_pic ? (
                       <img src={user.profile_pic} alt={user.name} className="h-full w-full object-cover" />
@@ -130,7 +134,7 @@ export function Navbar() {
                     <span className="text-sm font-bold">{user.name}</span>
                     <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
-                </div>
+                </Link>
               ) : (
                 <Link
                   href="/auth"

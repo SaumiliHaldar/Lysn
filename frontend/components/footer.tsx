@@ -42,9 +42,9 @@ export function Footer() {
               <h3 className="text-sm font-bold text-foreground mb-3 uppercase tracking-wider">Product</h3>
               <ul className="space-y-2">
                 <FooterLink href="/#features">Features</FooterLink>
+                <FooterLink href="/about">About</FooterLink>
                 <FooterLink href="/library">Library</FooterLink>
                 <FooterLink href="/dashboard">Dashboard</FooterLink>
-                <FooterLink href="/about">About</FooterLink>
               </ul>
             </div>
 

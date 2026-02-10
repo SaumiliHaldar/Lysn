@@ -104,8 +104,8 @@ export default function DashboardPage() {
   return (
     <div className={`mx-auto max-w-7xl px-4 py-6 sm:py-8 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
       {/* Header */}
-      <div className="mb-8 sm:mb-12 flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
+      <div className="mb-8 sm:mb-12 flex items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-2xl bg-primary/10">
              {user?.profile_pic ? (
                <img src={user.profile_pic} alt={user.name} className="h-full w-full object-cover" />
@@ -122,10 +122,11 @@ export default function DashboardPage() {
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 self-start rounded-full border border-border/50 bg-background/50 px-4 py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all active:scale-95"
+          className="flex items-center gap-2 self-center rounded-full border border-border/50 bg-background/50 p-2.5 sm:px-4 sm:py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all active:scale-95"
+          aria-label="Logout"
         >
-          <LogOut className="h-3.5 w-3.5" />
-          Logout
+          <LogOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          <span className="hidden sm:inline">Logout</span>
         </button>
       </div>
 

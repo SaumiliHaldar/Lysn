@@ -40,9 +40,15 @@ export default function LibraryPage() {
       const audioData = await api.audio.list();
       setAudios(audioData.audios || []);
     } catch (err: any) {
-      toast.error("Failed to load library", {
-        description: err.message || "Could not fetch your audio files.",
-      });
+      if (err.status === 401) {
+        toast.error("Access Denied", {
+          description: "Login or Signup to view your library",
+        });
+      } else {
+        toast.error("Failed to load library", {
+          description: err.message || "Could not fetch your audio files.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
