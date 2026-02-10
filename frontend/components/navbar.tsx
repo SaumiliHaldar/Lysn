@@ -25,6 +25,10 @@ export function Navbar() {
       }
     };
     fetchUser();
+
+    // Listen for auth changes to update UI immediately
+    window.addEventListener("auth-change", fetchUser);
+    return () => window.removeEventListener("auth-change", fetchUser);
   }, []);
 
   useEffect(() => {

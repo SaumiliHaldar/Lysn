@@ -48,7 +48,7 @@ REDIRECT_URI = os.getenv("REDIRECT_URI")
 app = FastAPI(title="Lysn 🎧")
 
 # Get allowed origins (comma separated)
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")]
 
 app.add_middleware(
     CORSMiddleware,
@@ -409,7 +409,9 @@ def google_callback(response: Response, code: str, state: str = None):
     # We will assume the first HTTPS origin if available, else the first allowed origin.
     
     # Determine target origin from state (passed in google_login)
-    target_origin = state if state in ALLOWED_ORIGINS else ALLOWED_ORIGINS[0]
+    # Strip trailing slash for comparison
+    clean_state = (state or "").rstrip("/")
+    target_origin = clean_state if clean_state in ALLOWED_ORIGINS else ALLOWED_ORIGINS[0]
     
     # If state isn't a known origin, try to find the production one if this is a secure request
     if target_origin not in ALLOWED_ORIGINS and len(ALLOWED_ORIGINS) > 1:
@@ -419,9 +421,10 @@ def google_callback(response: Response, code: str, state: str = None):
                 target_origin = o
                 break
 
-    redirect_res = RedirectResponse(target_origin)
+    # Redirect to the home page on the target origin
+    redirect_res = RedirectResponse(f"{target_origin}/")
     
-    # We can try to guess origin context for cookies from the target_origin string
+    # Determine cookie settings based on target_origin
     cookie_settings = get_cookie_settings(target_origin)
     
     redirect_res.set_cookie(

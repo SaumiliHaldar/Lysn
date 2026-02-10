@@ -110,9 +110,10 @@ export default function AuthPage() {
           setIsNewUser(true);
           setStep("set-password");
         } catch {
-          // Existing user, redirect to dashboard
+          // Existing user, redirect to home
           setStep("success");
-          setTimeout(() => window.location.href = "/", 2000);
+          window.dispatchEvent(new Event("auth-change"));
+          setTimeout(() => window.location.href = "/", 800);
         }
       }
     } catch (err: any) {
@@ -129,7 +130,8 @@ export default function AuthPage() {
     try {
       await api.auth.login(email, password);
       setStep("success");
-      setTimeout(() => window.location.href = "/", 2000);
+      window.dispatchEvent(new Event("auth-change"));
+      setTimeout(() => window.location.href = "/", 800);
     } catch (err: any) {
       toast.error(err.message || "Invalid credentials");
     } finally {
