@@ -90,7 +90,7 @@ export default function SupportPage() {
 
               <a
                 href="mailto:haldar.saumili843@gmail.com"
-                className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary px-10 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-primary/30"
+                className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 sm:px-10 py-4 text-xs sm:text-sm md:text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-primary/30 w-full sm:w-auto text-center break-all sm:break-normal"
               >
                 haldar.saumili843@gmail.com
               </a>
