@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { Headphones, Github, Linkedin, Heart, Mail } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/audio-player-context";
+import { useState } from "react";
+import { CookieModal } from "./cookie-modal";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
   const { isPlayerOpen } = useAudioPlayer();
+  const [isCookieModalOpen, setIsCookieModalOpen] = useState(false);
 
   return (
     <footer className={`relative border-t border-border/50 bg-gradient-to-b from-background to-secondary/10 backdrop-blur-xl transition-all duration-500 ease-in-out ${isPlayerOpen ? "lg:mr-[320px]" : ""}`}>
@@ -51,10 +54,17 @@ export function Footer() {
             <div>
               <h3 className="text-sm font-bold text-foreground mb-3 uppercase tracking-wider">Legal</h3>
               <ul className="space-y-2">
-                <FooterLink href="#">Privacy</FooterLink>
-                <FooterLink href="#">Terms</FooterLink>
-                <FooterLink href="#">Support</FooterLink>
-                <FooterLink href="#">Cookies</FooterLink>
+                <FooterLink href="/privacy">Privacy</FooterLink>
+                <FooterLink href="/terms">Terms</FooterLink>
+                <FooterLink href="/support">Support</FooterLink>
+                <li>
+                  <button
+                    onClick={() => setIsCookieModalOpen(true)}
+                    className="text-sm text-muted-foreground hover:text-primary transition-all hover:translate-x-1 inline-flex items-center gap-1 active:scale-95 group"
+                  >
+                    <span className="group-hover:underline underline-offset-4 cursor-pointer">Cookies</span>
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -74,6 +84,8 @@ export function Footer() {
           </div>
         </div>
       </div>
+      
+      <CookieModal isOpen={isCookieModalOpen} onOpenChange={setIsCookieModalOpen} />
     </footer>
   );
 }
@@ -104,3 +116,4 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     </li>
   );
 }
+
