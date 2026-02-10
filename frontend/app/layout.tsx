@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClientLayout } from "@/components/client-layout";
+import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lysn | PDF to Audio",
+  title: "Lysn - PDF to Audio",
   description: "Transform your documents into high-quality audio with Lysn.",
 };
 
@@ -29,6 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
         <ClientLayout>{children}</ClientLayout>
+        <Analytics />
       </body>
     </html>
   );
