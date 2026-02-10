@@ -59,10 +59,10 @@ export function UploadZone({ onSuccess }: UploadZoneProps) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto px-1">
       <div
         {...getRootProps()}
-        className={`relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed p-12 transition-all min-h-[280px] flex items-center justify-center ${
+        className={`relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed p-6 sm:p-12 transition-all min-h-[200px] sm:min-h-[280px] flex items-center justify-center ${
           isDragActive
             ? "border-primary bg-primary/5 ring-4 ring-primary/10"
             : "border-border/50 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40"
@@ -79,10 +79,10 @@ export function UploadZone({ onSuccess }: UploadZoneProps) {
               exit={{ opacity: 0, y: -10 }}
               className="flex flex-col items-center text-center"
             >
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Upload className="h-8 w-8" />
+              <div className="mb-4 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Upload className="h-6 w-6 sm:h-8 sm:w-8" />
               </div>
-              <h3 className="text-xl font-bold">Upload your PDF</h3>
+              <h3 className="text-lg sm:text-xl font-bold">Upload your PDF</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 Drag and drop your document here, or click to browse.
               </p>
@@ -122,7 +122,7 @@ export function UploadZone({ onSuccess }: UploadZoneProps) {
                   e.stopPropagation();
                   handleUpload();
                 }}
-                className="group flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-70"
+                className="group flex items-center justify-center gap-2 rounded-full bg-primary px-6 sm:px-8 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-70"
               >
                 {status === "uploading" ? (
                   <>

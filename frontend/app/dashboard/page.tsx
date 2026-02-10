@@ -102,7 +102,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className={`relative min-h-screen pt-20 pb-16 overflow-hidden transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
+    <div className={`relative min-h-screen pt-16 sm:pt-20 pb-16 overflow-hidden transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
       {/* Background decoration */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
@@ -111,25 +111,25 @@ export default function DashboardPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="mb-8 sm:mb-12 flex items-center justify-between gap-4 sm:gap-6">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-2xl bg-primary/10">
+      <div className="mb-8 sm:mb-12 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 overflow-hidden rounded-2xl bg-primary/10">
              {user?.profile_pic ? (
                <img src={user.profile_pic} alt={user.name} className="h-full w-full object-cover" />
              ) : (
                <div className="flex h-full w-full items-center justify-center text-primary">
-                 <User className="h-8 w-8" />
+                 <User className="h-6 w-6 sm:h-8 sm:w-8" />
                </div>
              )}
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Welcome back, {user?.name || "Listener"}</h1>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight truncate">Welcome back, {user?.name || "Listener"}</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 self-center rounded-full border border-border/50 bg-background/50 p-2.5 sm:px-4 sm:py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all active:scale-95"
+          className="flex items-center gap-2 shrink-0 rounded-full border border-border/50 bg-background/50 p-2.5 sm:px-4 sm:py-2 text-xs font-semibold hover:bg-destructive hover:text-white transition-all active:scale-95"
           aria-label="Logout"
         >
           <LogOut className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
@@ -137,7 +137,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      <div className="grid gap-12 lg:grid-cols-2">
+      <div className="grid gap-8 lg:gap-12 lg:grid-cols-2">
         {/* Left: Upload */}
         <div className="space-y-6">
           <div className="flex items-center gap-2 mb-2">
@@ -147,7 +147,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold">New Conversion</h2>
           </div>
           <UploadZone onSuccess={() => fetchData()} />
-          <p className="text-xs text-muted-foreground bg-secondary/30 p-4 rounded-2xl leading-relaxed max-w-2xl mx-auto w-full">
+          <p className="text-[10px] sm:text-xs text-muted-foreground bg-secondary/30 p-3 sm:p-4 rounded-2xl leading-relaxed max-w-2xl mx-auto w-full">
             <span className="font-semibold text-foreground">Pro Tip:</span> For the best results, ensure your PDF has a clear heading structure. Our AI works best with structured text.
           </p>
         </div>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="max-h-[365px] space-y-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar w-full max-w-2xl mx-auto">
+          <div className="h-auto sm:max-h-[365px] space-y-3 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar w-full max-w-2xl mx-auto">
             {audios.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[280px] p-12 text-center rounded-3xl border-2 border-dashed border-border/50 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40 transition-all">
                 <Library className="h-10 w-10 text-muted-foreground/30 mb-4" />
@@ -180,7 +180,7 @@ export default function DashboardPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   key={audio.audio_id}
-                  className="group flex items-center gap-4 rounded-2xl border border-border/50 bg-background p-4 transition-all hover:bg-secondary/40 hover:shadow-lg"
+                  className="group flex items-center gap-3 sm:gap-4 rounded-2xl border border-border/50 bg-background p-3 sm:p-4 transition-all hover:bg-secondary/40 hover:shadow-lg"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-all group-hover:bg-primary/20 group-hover:text-primary">
                     <Headphones className="h-5 w-5" />
