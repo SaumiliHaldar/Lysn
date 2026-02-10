@@ -3,8 +3,10 @@
 import { motion } from "framer-motion";
 import { Headphones, Mail, Github, Linkedin, Sparkles, Zap, Shield, Heart } from "lucide-react";
 import Link from "next/link";
+import { useAudioPlayer } from "@/contexts/audio-player-context";
 
 export default function AboutPage() {
+  const { isPlayerOpen } = useAudioPlayer();
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -21,7 +23,7 @@ export default function AboutPage() {
   };
 
   return (
-    <div className="relative min-h-screen pt-20 pb-16 overflow-hidden">
+    <div className={`relative min-h-screen pt-20 pb-16 overflow-hidden transition-all duration-500 ease-in-out ${isPlayerOpen ? 'lg:mr-[320px]' : ''}`}>
       {/* Background decoration */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
