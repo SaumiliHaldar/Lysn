@@ -87,7 +87,7 @@ def send_welcome_email(to_email: str, name: str):
     """
 
     try:
-        _send_email_via_script(to_email, subject, html_content)
+        _send_email_via_script(to_email, subject, html_content, is_html=True)
         print(f"Welcome email sent to {to_email}")
     except Exception as e:
         print(f"Error sending welcome email: {e}")
@@ -114,7 +114,9 @@ def send_password_email(to_email: str, name: str, temp_password: str):
             <p>Happy Lysning! 🎧</p>
             <br>
             <p style="margin-top: 25px;">
-                — <strong>The Lysn Team</strong>
+                Warmly,<br>
+                <strong>The Lysn Team</strong><br>
+                <small>Happy Lysning! 🎧</small>
             </p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;">
             <p style="font-size: 12px; color: #999;">
@@ -125,7 +127,7 @@ def send_password_email(to_email: str, name: str, temp_password: str):
     """
 
     try:
-        _send_email_via_script(to_email, subject, html_content)
+        _send_email_via_script(to_email, subject, html_content, is_html=True)
         print(f"Temporary password sent to {to_email}")
     except Exception as e:
         print(f"Error sending temporary password: {e}")
@@ -160,7 +162,7 @@ def send_password_update_email(to_email: str, name: str = None):
     """
 
     try:
-        _send_email_via_script(to_email, subject, html_content)
+        _send_email_via_script(to_email, subject, html_content, is_html=True)
         print(f"Password update confirmation sent to {to_email}")
     except Exception as e:
         print(f"Error sending password update email: {e}")
