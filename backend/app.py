@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, Response, Cookie, Request
+from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, Response, Cookie, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
@@ -160,7 +160,7 @@ async def health_check():
 
 # ---------- AUTHENTICATION : MANUAL ----------
 @app.post("/auth/otp/request")
-def request_otp(email: str = Form(...), name: str = Form(None)):
+def request_otp(background_tasks: BackgroundTasks, email: str = Form(...), name: str = Form(None)):
     otp = generate_otp()
     expires_at = get_kolkata_time() + timedelta(minutes=5)
 
@@ -171,12 +171,12 @@ def request_otp(email: str = Form(...), name: str = Form(None)):
         "name": name
     }
 
-    send_otp_email(email, otp, name)
+    background_tasks.add_task(send_otp_email, email, otp, name)
     return {"message": f"OTP sent to {email}"}
 
 
 @app.post("/auth/otp/verify")
-def verify_otp(request: Request, response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
+def verify_otp(background_tasks: BackgroundTasks, request: Request, response: Response, email: str = Form(...), otp: str = Form(...), name: str = Form(None)):
     otp_data = OTPS.get(email)
     
     if not otp_data or otp_data["otp"] != otp:
@@ -212,8 +212,8 @@ def verify_otp(request: Request, response: Response, email: str = Form(...), otp
         update_fields["created_at"] = get_kolkata_time()
         
         display_name = (name or otp_data.get("name") or email.split('@')[0]).title()
-        send_welcome_email(email, display_name)
-        send_password_email(email, display_name, temp_password)
+        background_tasks.add_task(send_welcome_email, email, display_name)
+        background_tasks.add_task(send_password_email, email, display_name, temp_password)
 
     users.update_one(
         {"email": email},
@@ -252,6 +252,7 @@ def login(request: Request, response: Response, email: str = Form(...), password
 
 @app.post("/auth/set-password")
 def set_password(
+    background_tasks: BackgroundTasks,
     email: str = Depends(get_current_user),
     old_password: str = Form(...),
     new_password: str = Form(...)
@@ -267,14 +268,14 @@ def set_password(
 
     # send confirmation email
     try:
-        send_password_update_email(email, user.get("name"))
+        background_tasks.add_task(send_password_update_email, email, user.get("name"))
     except Exception as e:
         print(f"Failed to send password update email: {e}")
 
     return {"message": "Password updated successfully"}
 
 @app.post("/auth/password/reset")
-def reset_password(email: str = Form(...)):
+def reset_password(background_tasks: BackgroundTasks, email: str = Form(...)):
     user = users.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -289,12 +290,12 @@ def reset_password(email: str = Form(...)):
     }
 
     # send OTP mail for password reset
-    send_otp_email(email, otp, user.get("name", email.split("@")[0].title()))
+    background_tasks.add_task(send_otp_email, email, otp, user.get("name", email.split("@")[0].title()))
 
     return {"message": f"OTP sent to {email} for password reset"}
 
 @app.post("/auth/password/reset/verify")
-def verify_reset_password(email: str = Form(...), otp: str = Form(...), new_password: str = Form(None)):
+def verify_reset_password(background_tasks: BackgroundTasks, email: str = Form(...), otp: str = Form(...), new_password: str = Form(None)):
     otp_data = OTPS.get(email)
     
     if not otp_data or otp_data["otp"] != otp:
@@ -320,7 +321,7 @@ def verify_reset_password(email: str = Form(...), otp: str = Form(...), new_pass
         # Send confirmation email
         user = users.find_one({"email": email})
         try:
-            send_password_update_email(email, user.get("name"))
+            background_tasks.add_task(send_password_update_email, email, user.get("name"))
         except Exception:
             pass
             
@@ -348,7 +349,7 @@ def google_login(origin: str = None):
     return RedirectResponse(auth_url)
 
 @app.get("/auth/google/callback")
-def google_callback(response: Response, code: str, state: str = None):
+def google_callback(background_tasks: BackgroundTasks, response: Response, code: str, state: str = None):
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
@@ -396,7 +397,7 @@ def google_callback(response: Response, code: str, state: str = None):
     # Send welcome email only for new Google signups
     if not existing_user:
         try:
-            send_welcome_email(email, name)
+            background_tasks.add_task(send_welcome_email, email, name)
         except Exception as e:
             print(f"Failed to send welcome email to {email}: {e}")
 
