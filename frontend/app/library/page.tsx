@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Library as LibraryIcon, PlayCircle, Trash2, Clock, FileAudio, Search, Filter, PauseCircle } from "lucide-react";
+import { Library as LibraryIcon, PlayCircle, Trash2, Clock, FileAudio, Search, Filter, PauseCircle, PlusCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioPlayer } from "@/components/audio-player";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/audio-player-context";
+import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -135,16 +136,43 @@ export default function LibraryPage() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative max-w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search your library..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm sm:text-base"
-            />
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Search Bar */}
+            <div className="relative w-full lg:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 p-2 rounded-lg bg-primary/10 backdrop-blur-md border border-primary/20 text-muted-foreground z-10 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search your library..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-14 pr-4 h-[44px] sm:h-[52px] rounded-xl border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm sm:text-base flex items-center"
+              />
+            </div>
+
+            {/* Guidelines Note */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex-1 w-full lg:w-auto"
+            >
+              <Link 
+                href="/dashboard"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 h-auto lg:h-[52px] rounded-2xl bg-secondary/30 border border-border/50 backdrop-blur-sm hover:bg-secondary/50 hover:border-primary/30 transition-all group py-4 lg:py-0"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+                    <PlusCircle className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-row items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground whitespace-nowrap">Expand Collection</p>
+                    <p className="hidden xl:block text-[11px] text-muted-foreground border-l border-border/50 pl-2">Upload more files or start conversions in Dashboard.</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center h-8 px-4 rounded-xl bg-primary/10 text-primary text-[10px] font-bold tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                  DASHBOARD
+                </div>
+              </Link>
+            </motion.div>
           </div>
         </div>
 

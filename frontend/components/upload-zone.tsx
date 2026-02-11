@@ -59,7 +59,7 @@ export function UploadZone({ onSuccess }: UploadZoneProps) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-1">
+    <div className="w-full max-w-2xl mx-auto">
       <div
         {...getRootProps()}
         className={`relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed p-6 sm:p-12 transition-all min-h-[200px] sm:min-h-[280px] flex items-center justify-center ${
