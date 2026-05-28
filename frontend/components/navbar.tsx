@@ -8,7 +8,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useAudioPlayer } from "@/contexts/audio-player-context";
 
-export function Navbar() {
+interface NavbarProps {
+  isBannerVisible?: boolean;
+}
+
+export function Navbar({ isBannerVisible = false }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -41,7 +45,9 @@ export function Navbar() {
 
   return (
     <nav 
-      className={`fixed top-0 left-0 z-50 transition-all duration-500 ease-in-out ${
+      className={`fixed left-0 z-50 transition-all duration-500 ease-in-out ${
+        isBannerVisible ? "top-[37px]" : "top-0"
+      } ${
         isScrolled 
           ? "bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5" 
           : "bg-background/60 backdrop-blur-md border-b border-border/30"
