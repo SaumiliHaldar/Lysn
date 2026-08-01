@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, Response, Cookie, Request, BackgroundTasks
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from bson import ObjectId
@@ -157,6 +157,10 @@ def root():
 @app.get("/healthz")
 async def health_check():
     return {"message": "Lysn is active!", "status": "OK"}
+
+@app.head("/healthz")
+async def health_check_head():
+    return Response(status_code=200)
 
 # ---------- AUTHENTICATION : MANUAL ----------
 @app.post("/auth/otp/request")
