@@ -45,7 +45,7 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 # FastAPI setup
-app = FastAPI(title="Lysn 🎧")
+app = FastAPI(title="Lysn")
 
 # Get allowed origins (comma separated)
 ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")]
